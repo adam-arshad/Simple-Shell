@@ -1,65 +1,65 @@
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <stdlib.h>
+// m8
+#include <unistd.h>     // fork, execl
+#include <sys/types.h>  // pid_t datatype
+#include <sys/wait.h>   // wait
+#include <errno.h>      // errno
+#include <stdio.h>      // printf
+#include <string.h>     // string comparison/functions
 
-int main() {
+#define DELIMITERS " \t|><&;\n"
+
+void tokenize(char *input);
+
+int main(void) {
     char input[512];
-    char *tokens[50];
-    int token_count;
-    char *token;
-    pid_t pid;
-    
+    int n = 512;
+
     while(1) {
-        printf("myshell> ");
-        
-        if (fgets(input, 512, stdin) == NULL) {
-            printf("\nGoodbye!\n");
+        printf("shellOS> ");
+
+        if (fgets(input, n, stdin) == NULL) {
             break;
         }
-        
-        int len = strlen(input);
-        if (len > 0 && input[len-1] == '\n') {
-            input[len-1] = '\0';
-        }
-        
-        if (strcmp(input, "exit") == 0) {
-            printf("Goodbye!\n");
+        if (strcmp(input, "exit\n") == 0) {
             break;
         }
+
+        tokenize(input);
+    }
+    return 0;
+}
+
+void tokenize(char *input) {
+    char* tokens[50];  // As per assignment: "Fifty tokens will be a reasonable number"
+    int i = 0;
+    
+    char* token = strtok(input, DELIMITERS);
+
+    while(token != NULL && i < 50) {
+        tokens[i] = token;
+        i++;
+        token = strtok(NULL, DELIMITERS);
+    }
+    tokens[i] = NULL;  // NULL-terminate as required by exec functions
+    
+    // Now execute if we have a command
+    if (tokens[0] != NULL) {
+        pid_t p = fork();
         
-        if (strlen(input) == 0) {
-            continue;
+        if (p < 0) {
+            printf("Error forking!\n");
+            return;
         }
-        
-        token_count = 0;
-        token = strtok(input, " \t");
-        
-        while (token != NULL && token_count < 50) {
-            tokens[token_count] = token;
-            token_count++;
-            token = strtok(NULL, " \t");
+        else if (p == 0) {
+            // Child - using execvp as assignment says "choose appropriate variant that uses PATH"
+            if (execvp(tokens[0], tokens) == -1) {
+                int n = errno;
+                perror("Oh oh, there was trouble");
+                printf("Error number %d\n", errno);
+            }
         }
-        
-        tokens[token_count] = NULL;
-        
-        if (token_count == 0) {
-            continue;
-        }
-        
-        pid = fork();
-        
-        if (pid == 0) {
-            execvp(tokens[0], tokens);
-            printf("Command not found: %s\n", tokens[0]);
-            exit(1);
-        } else if (pid > 0) {
+        else if (p > 0) {
             wait(NULL);
-        } else {
-            printf("Error: fork failed\n");
         }
     }
-    
-    return 0;
 }
