@@ -38,7 +38,7 @@ void tokenize(char *input) {
     while(token != NULL && i < 50) {
         tokens[i] = token;
         i++;
-        token = strtok(NULL, DELIMITERS);
+        token = strtok(NULL, DELIMITERS); //splits a string into multiple pieces using delimiters
     }
     tokens[i] = NULL;  // NULL-terminate as required by exec functions
     
