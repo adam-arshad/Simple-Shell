@@ -1,6 +1,6 @@
 // temp group name: m8
 /* compile and run
-        gcc shell.c -pedantic -Wall -o shell && ./shell 
+        gcc shell.c -pedantic -Wall -o shell && ./shell
 */
 #include <unistd.h> // fork, excel, execvp
 #include <sys/types.h> // pid_t datatype
@@ -16,7 +16,7 @@
 #define MAX_TOCKEN_NUM 50 // the maximum number of tokens (max words)
 
 // declare functions so that main functions know that they exist
-void tokenize(char *input, char *tokens[]); 
+void tokenize(char *input, char *tokens[]);
 void printToken(char *token);
 void execute(char *tokens[]);
 
@@ -64,11 +64,31 @@ int main(void) {
                                 // input validation
                                 if (tokens[1] == NULL) {
                                         printf("ERROR - setpath requires a parameter\n");
-                                } 
+                                }
                                 else{
                                         setpath(tokens[1]);
                                 }
                         }
+                        else if(strcmp(tokens[0], "cd") == 0) { 
+                        
+                        if(tokens[1] != NULL && tokens[2] != NULL) {      //Check for too many arguments
+                        printf("ERROR - cd only takes one argument\n");
+                        }                                                                      
+                       else if(tokens[1] == NULL) {
+                         char* home = getenv("HOME");
+                         
+                         if (chdir(home) == -1) {
+                          perror("cd");
+                         }
+                        } else {
+                            if(chdir(tokens[1]) == -1) {
+                            perror("cd");
+                           
+                          }
+                      }  
+                  }
+                           
+                         
                         else { // any command not built-in is treated as external
                                 execute(tokens);
                         }
@@ -87,13 +107,13 @@ void tokenize(char *input, char *tokens[]) {
 
         int i = 0;
 
-        // split string into tokens wherever there is one of these: \t | > < & ; \n 
+        // split string into tokens wherever there is one of these: \t | > < & ; \n
         char *token = strtok(input, DELIMITERS);
 
         // store string into array of tokens
         while(token != NULL && i < MAX_TOCKEN_NUM) {
                 tokens[i] = token;
-                printToken(token);
+              // printToken(token); //
                 i++;
                 token = strtok(NULL, DELIMITERS);
         }
@@ -102,7 +122,7 @@ void tokenize(char *input, char *tokens[]) {
         tokens[i] = NULL;
 }
 
-void printToken(char *token){
+void printToken(char *token){ 
         printf("%s\n", token);
 }
 
@@ -115,7 +135,7 @@ void execute(char *tokens[]){
         if (p < 0) {
                 perror("fork failed");
         }
-        // child program 
+        // child program
         else if (p == 0) {
                 execvp(tokens[0], tokens); // terminates itself if sucessfully run and generates new program
                 // execvp searches PATH automatically and accepts token array(echo, echo hello world)
@@ -146,14 +166,14 @@ void setpath(char* path){
     \__,_|\__,_|_|_|\__, |
                     |___/
 
-  _ _     _           
- (_) |__ | |__  _   _ 
+  _ _     _          
+ (_) |__ | |__  _   _
  | | '_ \| '_ \| | | |
  | | |_) | |_) | |_| |
  |_|_.__/|_.__/ \__, |
-                |___/ 
+                |___/
 
-  __  __ _ 
+  __  __ _
  |  \/  / |
  | |\/| | |
  | |  | | |
