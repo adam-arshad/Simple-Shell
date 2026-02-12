@@ -69,26 +69,35 @@ int main(void) {
                                         setpath(tokens[1]);
                                 }
                         }
-                        else if(strcmp(tokens[0], "cd") == 0) { 
+
+                        //stage 4
+
+                        else if(strcmp(tokens[0], "cd") == 0) { // built in command to change directory
                         
                         if(tokens[1] != NULL && tokens[2] != NULL) {      //Check for too many arguments
-                        printf("ERROR - cd only takes one argument\n");
-                        }                                                                      
+                        printf("ERROR - cd only takes one argument\n"); // error message for invalid usage
+                        }  
+
+                        // if user typed only "cd" then go to HOME                                                                
                        else if(tokens[1] == NULL) {
-                         char* home = getenv("HOME");
-                         
+                         char* home = getenv("HOME"); // get HOME directory from environment
+
+
+                         // try to change directory to HOME, -1 means it failed
                          if (chdir(home) == -1) {
-                          perror("cd");
+                          perror("cd"); // print system error message for why cd failed
                          }
-                        } else {
+                        } 
+
+                        // if user typed "cd <path>" then go to that path
+                        else { // try to change directory to the user provided directory
                             if(chdir(tokens[1]) == -1) {
-                            perror("cd");
+                            perror("cd");  //print system error message (e.g. no such directory)
                            
                           }
                       }  
                   }
-                           
-                         
+
                         else { // any command not built-in is treated as external
                                 execute(tokens);
                         }
@@ -179,4 +188,9 @@ void setpath(char* path){
  | |  | | |
  |_|  |_|_|
            
+               _               __ 
+   / \   _ __ __ _ / _|
+  / _ \ | '__/ _` | |_ 
+ / ___ \| | | (_| |  _|
+/_/   \_\_|  \__,_|_|  
  */
