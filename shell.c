@@ -6,7 +6,6 @@
 #include <sys/types.h> // pid_t datatype
 #include <sys/wait.h> // wait
 #include <errno.h> // errno
-
 #include <stdio.h> // printf, getf
 #include <string.h> // string comparioson, string into token
 #include <stdlib.h> // get enviroment
@@ -21,8 +20,9 @@ void printToken(char *token);
 void execute(char *tokens[]);
 
 // built in functions part of stage 3
-void getpath(void);
-void setpath(char* path);
+void getPath(void);
+void setPath(char* path);
+void changeDir(char* path, char* path2);
 
 int main(void) {
         // save the current path
@@ -58,46 +58,14 @@ int main(void) {
                 if (tokens[0] != NULL) {
                         // check if built in command or shell command
                         if (strcmp(tokens[0], "getpath") == 0) {
-                                getpath();
+                                getPath();
                         }
                         else if (strcmp(tokens[0], "setpath") == 0) {
-                                // input validation
-                                if (tokens[1] == NULL) {
-                                        printf("ERROR - setpath requires a parameter\n");
-                                }
-                                else{
-                                        setpath(tokens[1]);
-                                }
+                                setPath(tokens[1]);
                         }
-
-                        //stage 4
-
                         else if(strcmp(tokens[0], "cd") == 0) { // built in command to change directory
-                        
-                        if(tokens[1] != NULL && tokens[2] != NULL) {      //Check for too many arguments
-                        printf("ERROR - cd only takes one argument\n"); // error message for invalid usage
-                        }  
-
-                        // if user typed only "cd" then go to HOME                                                                
-                       else if(tokens[1] == NULL) {
-                         char* home = getenv("HOME"); // get HOME directory from environment
-
-
-                         // try to change directory to HOME, -1 means it failed
-                         if (chdir(home) == -1) {
-                          perror("cd"); // print system error message for why cd failed
-                         }
-                        } 
-
-                        // if user typed "cd <path>" then go to that path
-                        else { // try to change directory to the user provided directory
-                            if(chdir(tokens[1]) == -1) {
-                            perror("cd");  //print system error message (e.g. no such directory)
-                           
-                          }
-                      }  
-                  }
-
+                                changeDir(tokens[1], tokens[2]);
+                        }
                         else { // any command not built-in is treated as external
                                 execute(tokens);
                         }
@@ -122,7 +90,7 @@ void tokenize(char *input, char *tokens[]) {
         // store string into array of tokens
         while(token != NULL && i < MAX_TOCKEN_NUM) {
                 tokens[i] = token;
-              // printToken(token); //
+                // printToken(token); //
                 i++;
                 token = strtok(NULL, DELIMITERS);
         }
@@ -158,13 +126,36 @@ void execute(char *tokens[]){
 }
 
 // stage three
-void getpath(void){
+void getPath(void){
         char *path = getenv("PATH");
         printf("%s\n", path);
 }
 
-void setpath(char* path){
-        setenv("PATH", path, 1);
+void setPath(char* path){
+        if (path == NULL) {
+                printf("ERROR - setpath requires a parameter\n");
+        }
+        else{
+                setenv("PATH", path, 1);
+        }      
+}
+
+void changeDir(char* path, char* path2){
+        if(path != NULL && path2 != NULL) { //Check for too many arguments
+                printf("ERROR - cd only takes one argument\n"); // error message for invalid usage
+        }
+        else if(path == NULL) { // if user typed only "cd" then go to HOME
+                char* home = getenv("HOME"); // get HOME directory from environment
+                // try to change directory to HOME, -1 means it failed
+                if (chdir(home) == -1) {
+                        perror("cd"); // print system error message for why cd failed
+                }
+        }
+        else { //if user typed "cd <path>" then go to that path - try to change directory to the user provided directory
+                if(chdir(path) == -1) {
+                        perror("cd");  //print system error message (e.g. no such directory)
+                }
+        } 
 }
 
 /*
@@ -188,7 +179,7 @@ void setpath(char* path){
  | |  | | |
  |_|  |_|_|
            
-               _               __ 
+    _               __ 
    / \   _ __ __ _ / _|
   / _ \ | '__/ _` | |_ 
  / ___ \| | | (_| |  _|
