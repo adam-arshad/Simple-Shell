@@ -141,7 +141,7 @@ void setPath(char* path){
 }
 
 void changeDir(char* path, char* path2){
-        if(path != NULL && path2 != NULL) { //Check for too many arguments
+        if(path2 != NULL) { //Check for too many arguments
                 printf("ERROR - cd only takes one argument\n"); // error message for invalid usage
         }
         else if(path == NULL) { // if user typed only "cd" then go to HOME
