@@ -33,7 +33,7 @@ int history_count = 0;
 
 // global variables for aliases
 char alias_names[MAX_ALIASES][MAX_LINE_LEN]; // store alias names
-char alias_commands[MAX_ALIASES][MAX_LINE_LEN}; // store commands 
+char alias_commands[MAX_ALIASES][MAX_LINE_LEN]; // store commands 
 int alias_count = 0; // how many aliases exist
 
 
@@ -111,13 +111,13 @@ int main(void) {
                 }
                 // Checking for alias
                 char* firstToken = strtok(input, " \t\n"); // get first word
-                char* remInput = NULL*
+                char* remInput = NULL
                 
                 if(firstToken != NULL) { // go to the rest of the line in og_line
                  remInput = og_input + (firstToken - input) + strlen(firstToken);
                  
                   // skip leading spaces/ tabs between alias and rest of line
-                     while(*remInput == ' ' || *remINput == '\t') {
+                     while(*remInput == ' ' || *remInput == '\t') {
                        remInput++;
                    }
                    
