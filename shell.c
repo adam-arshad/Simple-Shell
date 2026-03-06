@@ -23,10 +23,20 @@ compile and run code (just copy and paste into terminal then hit enter):
 #define MAX_LINE_LEN 512 // the maximum number of charaters in a string
 #define MAX_TOCKEN_NUM 50 // the maximum number of tokens (max words)
 #define HISTORY_SIZE 20 // the maximum number of tokens to keep in history
+#define MAX_ALIASES 10 // the maximum number of aliases
+#define MAX_ALIAS_LEN 512 // the maximum alias command length
+
 
 // global variables for history
 char history[HISTORY_SIZE][MAX_LINE_LEN];
 int history_count = 0;
+
+// global variables for aliases
+char alias_names[MAX_ALIASES][MAX_LINE_LEN]; // store alias names
+char alias_commands[MAX_ALIASES][MAX_LINE_LEN}; // store commands 
+int alias_count = 0; // how many aliases exist
+
+
 
 // declare functions so that main functions know that they exist
 void tokenize(char *input, char *tokens[]);
@@ -47,6 +57,13 @@ char* getHistoryCommand(char* input);
 void loadHistory(void);
 void saveHistory(void);
 char* getHistoryFilepath(void);
+
+// alias functions
+void addAlias(char* name, char* command);
+void removeAlias(char* name);
+void printALias(void);
+char* checkAlias(char* firstToken, char* remInput);
+
 
 int main(void) {
         // save the current path
@@ -92,6 +109,27 @@ int main(void) {
                                 continue;  // error was printed, get next command
                         }
                 }
+                // Checking for alias
+                char* firstToken = strtok(input, " \t\n"); // get first word
+                char* remInput = NULL*
+                
+                if(firstToken != NULL) { // go to the rest of the line in og_line
+                 remInput = og_input + (firstToken - input) + strlen(firstToken);
+                 
+                  // skip leading spaces/ tabs between alias and rest of line
+                     while(*remInput == ' ' || *remINput == '\t') {
+                       remInput++;
+                   }
+                   
+                   // calls function that checks if firstToken is an alias. 
+                   // If yes, replacement will contain full command with alias replaced
+                   char* replace = checkAlias(firstToken, remInput);
+                    if(replace != NULL) {
+                     strcpy(input, replace); // replace input with expanded alias so shell can execute it
+                    }
+                  }
+                    
+                   
 
                 // call functions to split string into tokens
                 tokenize(input, tokens);
@@ -102,6 +140,29 @@ int main(void) {
                         if (!isHistoryCommand(og_input)) {
                                 addHistory(og_input);
                         }
+                        
+                        // Stage 7: Alias commands
+                        if(strcmp(tokens[0], "alias") == 0) { // checks if user typed "alias"
+                         
+                        if(tokens[1] == NULL) {
+                          printAliases(); // check in no argument. User just typed "alias"
+                        } else {
+                          char command[MAX_LINE_LEN] = ""; // add new alias
+                          for(int i = 2; tokens[i] != NULL; i++) { // loop through all tokens after alias name
+                            strcat(command, tokens[i]);
+                            if(tokens[i+1] != NULL) strcat(command, " "); // concatenates each token to command. adds space between tokens
+                            }
+                            addAlias(tokens[1], command);
+                           }
+                        }
+                        // handles unalias
+                        else if (strcmp(tokens[0], "unalias") == 0) { 
+                         if (tokens[1] == NULL) {
+                             printf("ERROR, unalias + name required\n");
+                           } else {
+                           removeAlias(tokens[1]);
+                           }
+                        }            
 
                         // check if built in command or shell command
                         if (strcmp(tokens[0], "getpath") == 0) {
