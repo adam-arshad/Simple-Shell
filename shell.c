@@ -151,6 +151,7 @@ if (tokens[0] != NULL && strcmp(tokens[0], "alias") != 0 && strcmp(tokens[0], "u
                             }
                             printf("DEBUG: About to call addAlias with name='%s' command='%s'\n", tokens[1], command); // ADD THIS LINE
                             addAlias(tokens[1], command);
+                            printf("DEBUG: Returned from addAlias, alias_count=%d\n", alias_count);
                            }
                         }                  
                         // handles unalias
