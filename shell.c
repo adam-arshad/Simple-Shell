@@ -165,7 +165,7 @@ int main(void) {
                         }            
 
                         // check if built in command or shell command
-                        if (strcmp(tokens[0], "getpath") == 0) {
+                        else if (strcmp(tokens[0], "getpath") == 0) {
                                 getPath();
                         }
                         else if (strcmp(tokens[0], "setpath") == 0) {
