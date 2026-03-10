@@ -153,6 +153,7 @@ if (tokens[0] != NULL && strcmp(tokens[0], "alias") != 0 && strcmp(tokens[0], "u
                             addAlias(tokens[1], command);
                            }
                         }
+                }    
                         // handles unalias
                         else if (strcmp(tokens[0], "unalias") == 0) { 
                          if (tokens[1] == NULL) {
