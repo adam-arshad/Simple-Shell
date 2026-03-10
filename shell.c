@@ -143,6 +143,7 @@ if (tokens[0] != NULL && strcmp(tokens[0], "alias") != 0 && strcmp(tokens[0], "u
                         if(tokens[1] == NULL) {
                           printALias(); // check in no argument. User just typed "alias"
                         } else {
+                                printf("DEBUG: tokens[1]=%s tokens[2]=%s\n", tokens[1], tokens[2] ? tokens[2] : "NULL");
                           char command[MAX_LINE_LEN] = ""; // add new alias
                           for(int i = 2; tokens[i] != NULL; i++) { // loop through all tokens after alias name
                             strcat(command, tokens[i]);
