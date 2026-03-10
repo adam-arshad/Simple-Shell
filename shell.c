@@ -110,11 +110,13 @@ int main(void) {
                         }
                 }
                 // Checking for alias
-                char* firstToken = strtok(input, " \t\n"); // get first word
+                 char temp_input[MAX_LINE_LEN];
+                strcpy(temp_input, input); // make a copy so we don't destroy input
+                char* firstToken = strtok(temp_input, " \t\n"); // get first word from copy
                 char* remInput = NULL;
                 
                 if(firstToken != NULL && strcmp(firstToken, "alias") != 0 && strcmp(firstToken, "unalias") != 0) { // go to the rest of the line in og_line
-                 remInput = og_input + (firstToken - input) + strlen(firstToken);
+                 remInput = og_input + (firstToken - temp_input) + strlen(firstToken);
                  
                   // skip leading spaces/ tabs between alias and rest of line
                      while(*remInput == ' ' || *remInput == '\t') {
