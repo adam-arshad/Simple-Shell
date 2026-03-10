@@ -113,7 +113,7 @@ int main(void) {
                 char* firstToken = strtok(input, " \t\n"); // get first word
                 char* remInput = NULL;
                 
-                if(firstToken != NULL) { // go to the rest of the line in og_line
+                if(firstToken != NULL && strcmp(firstToken, "alias") != 0 && strcmp(firstToken, "unalias") != 0) { // go to the rest of the line in og_line
                  remInput = og_input + (firstToken - input) + strlen(firstToken);
                  
                   // skip leading spaces/ tabs between alias and rest of line
