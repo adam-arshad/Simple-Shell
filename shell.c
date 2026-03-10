@@ -397,7 +397,9 @@ char* getHistoryFilepath(void) {
 
 void addAlias(char* name, char* command) {
         int i;
-        
+
+        printf("DEBUG: Inside addAlias - alias_count=%d\n", alias_count);
+
         for (i = 0; i< alias_count; i++) {
                 if (strcmp(alias_names[i], name) == 0) {
                         strcpy(alias_commands[i], command);
@@ -410,9 +412,11 @@ void addAlias(char* name, char* command) {
                 printf("ERROR - maximum number of aliases reached\n");
                 return;
         }
+        printf("DEBUG: About to store alias at index %d\n", alias_count);
         strcpy(alias_names[alias_count], name);
         strcpy(alias_commands[alias_count], command);
         alias_count++;
+        printf("DEBUG: Stored! alias_count now = %d\n", alias_count);
 }
 
 void removeAlias(char* name) {
