@@ -143,15 +143,12 @@ if (tokens[0] != NULL && strcmp(tokens[0], "alias") != 0 && strcmp(tokens[0], "u
                         if(tokens[1] == NULL) {
                           printALias(); // check in no argument. User just typed "alias"
                         } else {
-                                printf("DEBUG: tokens[1]=%s tokens[2]=%s\n", tokens[1], tokens[2] ? tokens[2] : "NULL");
                           char command[MAX_LINE_LEN] = ""; // add new alias
                           for(int i = 2; tokens[i] != NULL; i++) { // loop through all tokens after alias name
                             strcat(command, tokens[i]);
                             if(tokens[i+1] != NULL) strcat(command, " "); // concatenates each token to command. adds space between tokens
                             }
-                            printf("DEBUG: About to call addAlias with name='%s' command='%s'\n", tokens[1], command); // ADD THIS LINE
                             addAlias(tokens[1], command);
-                            printf("DEBUG: Returned from addAlias, alias_count=%d\n", alias_count);
                            }
                         }                  
                         // handles unalias
@@ -399,7 +396,6 @@ char* getHistoryFilepath(void) {
 void addAlias(char* name, char* command) {
         int i;
 
-        printf("DEBUG: Inside addAlias - alias_count=%d\n", alias_count);
 
         for (i = 0; i< alias_count; i++) {
                 if (strcmp(alias_names[i], name) == 0) {
@@ -413,11 +409,9 @@ void addAlias(char* name, char* command) {
                 printf("ERROR - maximum number of aliases reached\n");
                 return;
         }
-        printf("DEBUG: About to store alias at index %d\n", alias_count);
         strcpy(alias_names[alias_count], name);
         strcpy(alias_commands[alias_count], command);
         alias_count++;
-        printf("DEBUG: Stored! alias_count now = %d\n", alias_count);
 }
 
 void removeAlias(char* name) {
