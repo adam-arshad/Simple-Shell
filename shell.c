@@ -145,7 +145,7 @@ int main(void) {
                         if(strcmp(tokens[0], "alias") == 0) { // checks if user typed "alias"
                          
                         if(tokens[1] == NULL) {
-                          printAliases(); // check in no argument. User just typed "alias"
+                          printAlias(); // check in no argument. User just typed "alias"
                         } else {
                           char command[MAX_LINE_LEN] = ""; // add new alias
                           for(int i = 2; tokens[i] != NULL; i++) { // loop through all tokens after alias name
