@@ -111,7 +111,7 @@ int main(void) {
                 }
                 // Checking for alias
                 char* firstToken = strtok(input, " \t\n"); // get first word
-                char* remInput = NULL
+                char* remInput = NULL;
                 
                 if(firstToken != NULL) { // go to the rest of the line in og_line
                  remInput = og_input + (firstToken - input) + strlen(firstToken);
@@ -396,6 +396,85 @@ char* getHistoryFilepath(void) {
     snprintf(filepath, sizeof(filepath), "%s/.hist_list", home);
     return filepath;
 }
+
+void addAlias(char* name, char* command) {
+        int i;
+        
+        for (i = 0; i< alias_count; i++) {
+                if (strcmp(alias_names[i], name) == 0) {
+                        strcpy(alias_commands[i], command);
+                        printf("Alias updated\n", name);
+                        return;
+                }
+        }
+        
+        if (alias_count >= MAX_ALIASES) {
+                printf("ERROR - maximum number of aliases reached\n");
+                return;
+        }
+        strcpy(alias_names[alias_count], name);
+        strcpy(alias_commands[alias_count], command);
+        alias_count++;
+}
+
+void removeAlias(char* name) {
+        int found;
+        int i;
+        found = -1;
+
+        for (i = 0; i < alias_count; i++) {
+                if (strcmp(alias_names[i], name) == 0) {
+                        found = i;
+                        break;
+                }
+        }
+        if (found == -1) {
+                printf("ERROR - no such alias\n");
+                return;
+        }
+        for (i = found; i < alias_count - 1; i++) {
+                strcpy(alias_names[i], alias_names[i + 1]);
+                strcpy(alias_commands[i], alias_commands[i + 1]);
+        }
+        alias_count--;
+}
+
+void printALias(void) {
+        int i;
+
+        if (alias_count == 0) {
+                printf("No aliases set\n");
+                return;
+        }
+        for (i = 0; i < alias_count; i++) {
+                printf("alias %s='%s'\n", alias_names[i], alias_commands[i]);
+        }
+
+
+}
+
+char* checkAlias(char* firstToken, char* remInput) {
+         static char expanded[MAX_LINE_LEN];
+        int i;
+
+        for (i = 0; i < alias_count; i++) {
+                if (strcmp(firstToken, alias_names[i]) == 0) {
+                        strcpy(expanded, alias_commands[i]);
+
+                      if (remInput != NULL) {
+                                strcat(expanded, " ");
+                                strcat(expanded, remInput);
+                        } else {
+                                strcat(expanded, "\n");
+                        }
+                        
+                        return expanded;
+                }
+        }
+        
+        return NULL;
+}
+
         
 
 /*
