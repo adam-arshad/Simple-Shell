@@ -109,33 +109,27 @@ int main(void) {
                                 continue;  // error was printed, get next command
                         }
                 }
-                // Checking for alias
-                 char temp_input[MAX_LINE_LEN];
-                strcpy(temp_input, input); // make a copy so we don't destroy input
-                char* firstToken = strtok(temp_input, " \t\n"); // get first word from copy
-                char* remInput = NULL;
                 
-                if(firstToken != NULL && strcmp(firstToken, "alias") != 0 && strcmp(firstToken, "unalias") != 0) { // go to the rest of the line in og_line
-                 remInput = og_input + (firstToken - temp_input) + strlen(firstToken);
-                 
-                  // skip leading spaces/ tabs between alias and rest of line
-                     while(*remInput == ' ' || *remInput == '\t') {
-                       remInput++;
-                   }
-                   
-                   // calls function that checks if firstToken is an alias. 
-                   // If yes, replacement will contain full command with alias replaced
-                   char* replace = checkAlias(firstToken, remInput);
-                    if(replace != NULL) {
-                     strcpy(input, replace); // replace input with expanded alias so shell can execute it
-                    }
-                  }
-                    
-                   
-
                 // call functions to split string into tokens
                 tokenize(input, tokens);
 
+                // Check if first token is an alias and expand it
+if (tokens[0] != NULL && strcmp(tokens[0], "alias") != 0 && strcmp(tokens[0], "unalias") != 0) {
+    for (int i = 0; i < alias_count; i++) {
+        if (strcmp(tokens[0], alias_names[i]) == 0) {
+            // Found an alias! Rebuild input with the aliased command
+            strcpy(input, alias_commands[i]);
+            for (int j = 1; tokens[j] != NULL; j++) {
+                strcat(input, " ");
+                strcat(input, tokens[j]);
+            }
+            strcat(input, "\n");
+            // Re-tokenize with the expanded command
+            tokenize(input, tokens);
+            break;
+        }
+    }
+}
                 // call function to run command (doesn't allow an empty input)
                 if (tokens[0] != NULL) {
 
