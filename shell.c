@@ -16,11 +16,11 @@ compile and run code (just copy and paste into terminal then hit enter):
 #include <sys/wait.h> // wait
 #include <errno.h> // errno
 #include <stdio.h> // printf, getf
-#include <string.h> // string comparioson, string into token
-#include <stdlib.h> // get enviroment, malloc
+#include <string.h> // string comparison, string into token
+#include <stdlib.h> // get environment, malloc
 
 #define DELIMITERS " \t|><&;\n" // all things that would split a string into multiple tokens
-#define MAX_LINE_LEN 512 // the maximum number of charaters in a string
+#define MAX_LINE_LEN 512 // the maximum number of characters in a string
 #define MAX_TOKEN_NUM 50 // the maximum number of tokens (max words)
 #define HISTORY_SIZE 20 // the maximum number of tokens to keep in history
 #define MAX_ALIASES 10 // the maximum number of aliases
@@ -64,6 +64,11 @@ void removeAlias(char* name);
 void printALias(void);
 char* checkAlias(char* firstToken, char* remInput);
 
+// stage 8 functions
+void saveAliases(void);
+void loadAliases(void);
+char* getAliasFilepath(void);
+
 
 int main(void) {
         // save the current path
@@ -74,11 +79,13 @@ int main(void) {
         chdir(home);
 
         loadHistory();
+        
+        loadAliases(); // stage 8 - load aliases from .aliases file
 
         // declare variables
         char og_input[MAX_LINE_LEN];
         char input[MAX_LINE_LEN];
-        char *tokens[MAX_TOCKEN_NUM];
+        char *tokens[MAX_TOKEN_NUM];
 
         // infinite loop
         while(1) {
@@ -182,6 +189,8 @@ if (tokens[0] != NULL && strcmp(tokens[0], "alias") != 0 && strcmp(tokens[0], "u
 
         // print history to file
         saveHistory();
+        
+        saveAliases(); //stage 8 - save aliases to .aliases before exiting shell
 
         // set working directory to original
         setenv("PATH", og_path, 1);
@@ -199,7 +208,7 @@ void tokenize(char *input, char *tokens[]) {
         char *token = strtok(input, DELIMITERS);
 
         // store string into array of tokens
-        while(token != NULL && i < MAX_TOCKEN_NUM) {
+        while(token != NULL && i < MAX_TOKEN_NUM) {
                 tokens[i] = token;
                 // printToken(token); //
                 i++;
@@ -390,6 +399,13 @@ char* getHistoryFilepath(void) {
     static char filepath[MAX_LINE_LEN]; // static so pointer stays valid
     char *home = getenv("HOME");
     snprintf(filepath, sizeof(filepath), "%s/.hist_list", home);
+    return filepath;
+}
+// the full path to the alias file in the user's home directory using snprintf
+char* getAliasFilepath(void) { 
+    static char filepath[MAX_LINE_LEN];
+    char* home = getenv("HOME"); // get user's home directory
+    snprintf(filepath, sizeof(filepath), "%s/.aliases", home); // used to create strings. snprintf used to write into string and prevent overflow
     return filepath;
 }
 
