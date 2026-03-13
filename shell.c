@@ -21,11 +21,10 @@ compile and run code (just copy and paste into terminal then hit enter):
 
 #define DELIMITERS " \t|><&;\n" // all things that would split a string into multiple tokens
 #define MAX_LINE_LEN 512 // the maximum number of charaters in a string
-#define MAX_TOCKEN_NUM 50 // the maximum number of tokens (max words)
+#define MAX_TOKEN_NUM 50 // the maximum number of tokens (max words)
 #define HISTORY_SIZE 20 // the maximum number of tokens to keep in history
 #define MAX_ALIASES 10 // the maximum number of aliases
 #define MAX_ALIAS_LEN 512 // the maximum alias command length
-#define MAX_SUBSTITUTIONS 10 // stage 9: max alias/history expansions before giving circular error
 
 
 // global variables for history
@@ -99,7 +98,7 @@ int main(void) {
                 // copy original input into working input so that orignal input is never modified
                 strcpy(input, og_input);
 
-                // Check if this is a history command (!!, !5, !-2, etc)
+                // NEW: Check if this is a history command (!!, !5, !-2, etc)
                 if (isHistoryCommand(og_input)) {
                         char* history_cmd = getHistoryCommand(og_input);
                         if (history_cmd != NULL) {
@@ -114,77 +113,23 @@ int main(void) {
                 // call functions to split string into tokens
                 tokenize(input, tokens);
 
-                // Stage 9: Enhanced alias expansion loop
-                // Keep expanding aliases and history commands until nothing changes
-                // or we hit the substitution limit (catches circular dependencies)
-                if (tokens[0] != NULL && strcmp(tokens[0], "alias") != 0 && strcmp(tokens[0], "unalias") != 0) {
-                        int substitution_count = 0;
-                        int expanded = 1;
-
-                        while (expanded && substitution_count < MAX_SUBSTITUTIONS) {
-                                expanded = 0;
-
-                                // Step 1: if the first token is a history command, expand it
-                                if (tokens[0] != NULL && isHistoryCommand(tokens[0])) {
-                                        // build a temporary string just for the history lookup (needs newline)
-                                        char hist_lookup[MAX_LINE_LEN];
-                                        strcpy(hist_lookup, tokens[0]);
-                                        strcat(hist_lookup, "\n");
-
-                                        char* hist_cmd = getHistoryCommand(hist_lookup);
-                                        if (hist_cmd == NULL) {
-                                                break; // error already printed
-                                        }
-
-                                        // rebuild input: history expansion + any remaining tokens
-                                        char new_input[MAX_LINE_LEN];
-                                        strcpy(new_input, hist_cmd);
-                                        // remove the trailing newline from hist_cmd so we can append args
-                                        int len = strlen(new_input);
-                                        if (len > 0 && new_input[len - 1] == '\n') {
-                                                new_input[len - 1] = '\0';
-                                        }
-                                        for (int j = 1; tokens[j] != NULL; j++) {
-                                                strcat(new_input, " ");
-                                                strcat(new_input, tokens[j]);
-                                        }
-                                        strcat(new_input, "\n");
-
-                                        strcpy(input, new_input);
-                                        tokenize(input, tokens);
-                                        substitution_count++;
-                                        expanded = 1;
-                                        continue; // re-check from top of while loop
-                                }
-
-                                // Step 2: check if first token matches an alias
-                                for (int i = 0; i < alias_count; i++) {
-                                        if (tokens[0] != NULL && strcmp(tokens[0], alias_names[i]) == 0) {
-                                                // Found an alias - rebuild input with alias command + remaining tokens
-                                                char new_input[MAX_LINE_LEN];
-                                                strcpy(new_input, alias_commands[i]);
-                                                for (int j = 1; tokens[j] != NULL; j++) {
-                                                        strcat(new_input, " ");
-                                                        strcat(new_input, tokens[j]);
-                                                }
-                                                strcat(new_input, "\n");
-
-                                                strcpy(input, new_input);
-                                                tokenize(input, tokens);
-                                                substitution_count++;
-                                                expanded = 1;
-                                                break;
-                                        }
-                                }
-                        }
-
-                        // if we hit the limit, the user has a circular alias chain
-                        if (substitution_count >= MAX_SUBSTITUTIONS) {
-                                printf("ERROR - circular alias or history dependency detected\n");
-                                continue;
-                        }
-                }
-
+                // Check if first token is an alias and expand it
+if (tokens[0] != NULL && strcmp(tokens[0], "alias") != 0 && strcmp(tokens[0], "unalias") != 0) {
+    for (int i = 0; i < alias_count; i++) {
+        if (strcmp(tokens[0], alias_names[i]) == 0) {
+            // Found an alias! Rebuild input with the aliased command
+            strcpy(input, alias_commands[i]);
+            for (int j = 1; tokens[j] != NULL; j++) {
+                strcat(input, " ");
+                strcat(input, tokens[j]);
+            }
+            strcat(input, "\n");
+            // Re-tokenize with the expanded command
+            tokenize(input, tokens);
+            break;
+        }
+    }
+}
                 // call function to run command (doesn't allow an empty input)
                 if (tokens[0] != NULL) {
 
@@ -455,7 +400,7 @@ void addAlias(char* name, char* command) {
         for (i = 0; i< alias_count; i++) {
                 if (strcmp(alias_names[i], name) == 0) {
                         strcpy(alias_commands[i], command);
-                        printf("Alias updated");
+                        printf("Alias %s updated\n", name);
                         return;
                 }
         }
