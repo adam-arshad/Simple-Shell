@@ -488,6 +488,49 @@ char* checkAlias(char* firstToken, char* remInput) {
         return NULL;
 }
 
+// stage 8 - save aliases to file
+void saveAliases(void) {
+        FILE *file = fopen(getAliasFilepath(), "w");
+        if (file == NULL) {
+                return; // couldn't open file
+        }
+
+        int i;
+        for (i = 0; i < alias_count; i++) {
+                fprintf(file, "%s %s\n", alias_names[i], alias_commands[i]);
+        }
+
+        fclose(file);
+}
+
+// stage 8 - load aliases from file
+void loadAliases(void) {
+        FILE *file = fopen(getAliasFilepath(), "r");
+        if (file == NULL) {
+                return; // file doesn't exist yet
+        }
+
+        char line[MAX_LINE_LEN];
+        char name[MAX_LINE_LEN];
+        char command[MAX_LINE_LEN];
+
+        while (fgets(line, sizeof(line), file) != NULL) {
+                char *space = strchr(line, ' '); // find split point
+                if (space == NULL) {
+                        continue; // skip malformed lines
+                }
+
+                *space = '\0';
+                strcpy(name, line);
+
+                strcpy(command, space + 1);
+                command[strcspn(command, "\n")] = '\0'; // remove newline
+
+                addAlias(name, command);
+        }
+
+        fclose(file);
+}
         
 
 /*
