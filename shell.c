@@ -11,174 +11,146 @@ compile and run code (just copy and paste into terminal then hit enter):
 
 */
 
-#include <unistd.h> // fork, excel, execvp
+#include <unistd.h>    // fork, execvp
 #include <sys/types.h> // pid_t datatype
-#include <sys/wait.h> // wait
-#include <errno.h> // errno
-#include <stdio.h> // printf, getf
-#include <string.h> // string comparison, string into token
-#include <stdlib.h> // get environment, malloc
+#include <sys/wait.h>  // wait
+#include <errno.h>     // errno
+#include <stdio.h>     // printf, fgets
+#include <string.h>    // strcmp, strtok, strcat, strcpy
+#include <stdlib.h>    // getenv, malloc
 
-#define DELIMITERS " \t|><&;\n" // all things that would split a string into multiple tokens
-#define MAX_LINE_LEN 512 // the maximum number of characters in a string
-#define MAX_TOKEN_NUM 50 // the maximum number of tokens (max words)
-#define HISTORY_SIZE 20 // the maximum number of tokens to keep in history
-#define MAX_ALIASES 10 // the maximum number of aliases
-#define MAX_ALIAS_LEN 512 // the maximum alias command length
+#define DELIMITERS " \t|><&;\n"  // characters that split input into tokens
+#define MAX_LINE_LEN 512         // maximum characters in a command line
+#define MAX_TOKEN_NUM 50         // maximum number of tokens per command
+#define HISTORY_SIZE 20          // maximum commands kept in history
+#define MAX_ALIASES 10           // maximum number of aliases
+#define MAX_ALIAS_LEN 512        // maximum alias command length
+#define MAX_SUBSTITUTIONS 10     // stage 9: max alias/history chain depth before cycle error
 
 
-// global variables for history
+// --- Global variables ---
+
+// history stored as a circular array of strings
 char history[HISTORY_SIZE][MAX_LINE_LEN];
 int history_count = 0;
 
-// global variables for aliases
-char alias_names[MAX_ALIASES][MAX_LINE_LEN]; // store alias names
-char alias_commands[MAX_ALIASES][MAX_LINE_LEN]; // store commands 
-int alias_count = 0; // how many aliases exist
+// aliases stored as two parallel arrays: names and their commands
+char alias_names[MAX_ALIASES][MAX_LINE_LEN];
+char alias_commands[MAX_ALIASES][MAX_LINE_LEN];
+int alias_count = 0;
 
 
+// --- Function declarations ---
 
-// declare functions so that main functions know that they exist
 void tokenize(char *input, char *tokens[]);
-void printToken(char *token);
 void execute(char *tokens[]);
 
-// built in functions part of stage 3/4
 void getPath(void);
-void setPath(char* path);
-void changeDir(char* path, char* path2);
+void setPath(char *path);
+void changeDir(char *path, char *path2);
 
-// history functions
-int stringToInt(char* str);
-void addHistory(char* command);
-void printHistory(FILE* output);
-int isHistoryCommand(char* input);
-char* getHistoryCommand(char* input);
+int  stringToInt(char *str);
+void addHistory(char *command);
+void printHistory(FILE *output);
+int  isHistoryCommand(char *input);
+char *getHistoryCommand(char *input);
 void loadHistory(void);
 void saveHistory(void);
-char* getHistoryFilepath(void);
+char *getHistoryFilepath(void);
 
-// alias functions
-void addAlias(char* name, char* command);
-void removeAlias(char* name);
-void printALias(void);
-char* checkAlias(char* firstToken, char* remInput);
+void addAlias(char *name, char *command);
+void removeAlias(char *name);
+void printAliases(void);
 
-// stage 8 functions
+// stage 9: resolve chains of aliases and history invocations with cycle detection
+int resolveCommand(char *input);
+
 void saveAliases(void);
 void loadAliases(void);
-char* getAliasFilepath(void);
+char *getAliasFilepath(void);
 
+
+// --- Main ---
 
 int main(void) {
-        // save the current path
+        // save original PATH so it can be restored on exit
         char *og_path = getenv("PATH");
-        // get the home directory
+
+        // set working directory to user home directory
         char *home = getenv("HOME");
-        // set the current working directory to the home directory
         chdir(home);
 
         loadHistory();
-        
-        loadAliases(); // stage 8 - load aliases from .aliases file
+        loadAliases();
 
-        // declare variables
         char og_input[MAX_LINE_LEN];
         char input[MAX_LINE_LEN];
         char *tokens[MAX_TOKEN_NUM];
 
-        // infinite loop
-        while(1) {
-                // print shell prompt
+        while (1) {
                 printf("shellOS> ");
 
-                // read user input and ctrl d = null
+                // read input; NULL means EOF (ctrl-D)
                 if (fgets(og_input, MAX_LINE_LEN, stdin) == NULL) {
                         break;
                 }
 
-                // compares user input to 'exit'
+                // exit command
                 if (strcmp(og_input, "exit\n") == 0) {
                         break;
                 }
 
-                // copy original input into working input so that orignal input is never modified
+                // copy into working buffer so og_input is never modified
                 strcpy(input, og_input);
 
-                // NEW: Check if this is a history command (!!, !5, !-2, etc)
-                if (isHistoryCommand(og_input)) {
-                        char* history_cmd = getHistoryCommand(og_input);
-                        if (history_cmd != NULL) {
-                                // Replace working input with the history command
-                                strcpy(input, history_cmd);
-                                printf("%s", history_cmd);  // show what we're executing
-                        } else {
-                                continue;  // error was printed, get next command
-                        }
+                // stage 9: resolve aliases and history chains (handles !!, !n, !-n, alias chains)
+                // resolveCommand modifies input in place; returns 0 on error (prints its own message)
+                if (!resolveCommand(input)) {
+                        continue;
                 }
-                
-                // call functions to split string into tokens
+
+                // tokenize the fully resolved command
                 tokenize(input, tokens);
 
-                // Check if first token is an alias and expand it
-if (tokens[0] != NULL && strcmp(tokens[0], "alias") != 0 && strcmp(tokens[0], "unalias") != 0) {
-    for (int i = 0; i < alias_count; i++) {
-        if (strcmp(tokens[0], alias_names[i]) == 0) {
-            // Found an alias! Rebuild input with the aliased command
-            strcpy(input, alias_commands[i]);
-            for (int j = 1; tokens[j] != NULL; j++) {
-                strcat(input, " ");
-                strcat(input, tokens[j]);
-            }
-            strcat(input, "\n");
-            // Re-tokenize with the expanded command
-            tokenize(input, tokens);
-            break;
-        }
-    }
-}
-                // call function to run command (doesn't allow an empty input)
+                // only process non-empty input
                 if (tokens[0] != NULL) {
 
+                        // add original input to history (not history invocations)
                         if (!isHistoryCommand(og_input)) {
                                 addHistory(og_input);
                         }
-                        
-                        // Stage 7: Alias commands
-                        if(strcmp(tokens[0], "alias") == 0) { // checks if user typed "alias"
-                         
-                        if(tokens[1] == NULL) {
-                          printALias(); // check in no argument. User just typed "alias"
-                        } else {
-                          char command[MAX_LINE_LEN] = ""; // add new alias
-                          for(int i = 2; tokens[i] != NULL; i++) { // loop through all tokens after alias name
-                            strcat(command, tokens[i]);
-                            if(tokens[i+1] != NULL) strcat(command, " "); // concatenates each token to command. adds space between tokens
-                            }
-                            addAlias(tokens[1], command);
-                           }
-                        }                  
-                        // handles unalias
-                        else if (strcmp(tokens[0], "unalias") == 0) { 
-                         if (tokens[1] == NULL) {
-                             printf("ERROR, unalias + name required\n");
-                           } else {
-                           removeAlias(tokens[1]);
-                           }
-                        }            
 
-                        // check if built in command or shell command
+                        // alias management
+                        if (strcmp(tokens[0], "alias") == 0) {
+                                if (tokens[1] == NULL) {
+                                        printAliases();
+                                } else {
+                                        // join all tokens from index 2 onwards as the aliased command
+                                        char command[MAX_LINE_LEN] = "";
+                                        for (int i = 2; tokens[i] != NULL; i++) {
+                                                strcat(command, tokens[i]);
+                                                if (tokens[i + 1] != NULL) strcat(command, " ");
+                                        }
+                                        addAlias(tokens[1], command);
+                                }
+                        }
+                        else if (strcmp(tokens[0], "unalias") == 0) {
+                                if (tokens[1] == NULL) {
+                                        printf("ERROR - unalias requires a name\n");
+                                } else {
+                                        removeAlias(tokens[1]);
+                                }
+                        }
                         else if (strcmp(tokens[0], "getpath") == 0) {
                                 getPath();
                         }
                         else if (strcmp(tokens[0], "setpath") == 0) {
                                 setPath(tokens[1]);
                         }
-                        else if(strcmp(tokens[0], "cd") == 0) {
+                        else if (strcmp(tokens[0], "cd") == 0) {
                                 changeDir(tokens[1], tokens[2]);
                         }
-                        else if(strcmp(tokens[0], "history") == 0) {
-                                // print history to terminal
+                        else if (strcmp(tokens[0], "history") == 0) {
                                 printHistory(stdout);
                         }
                         else {
@@ -187,240 +159,210 @@ if (tokens[0] != NULL && strcmp(tokens[0], "alias") != 0 && strcmp(tokens[0], "u
                 }
         }
 
-        // print history to file
         saveHistory();
-        
-        saveAliases(); //stage 8 - save aliases to .aliases before exiting shell
+        saveAliases();
 
-        // set working directory to original
+        // restore original PATH
         setenv("PATH", og_path, 1);
-        printf("Orignal path restored: %s\n", getenv("PATH"));
+        printf("Original path restored: %s\n", getenv("PATH"));
 
         return 0;
 }
 
-// stage one
+
+// --- Stage 1: Tokenize ---
+
+/* splits input string into an array of tokens using defined delimiters */
 void tokenize(char *input, char *tokens[]) {
-
         int i = 0;
-
-        // split string into tokens wherever there is one of these: \t | > < & ; \n
         char *token = strtok(input, DELIMITERS);
-
-        // store string into array of tokens
-        while(token != NULL && i < MAX_TOKEN_NUM) {
+        while (token != NULL && i < MAX_TOKEN_NUM) {
                 tokens[i] = token;
-                // printToken(token); //
                 i++;
                 token = strtok(NULL, DELIMITERS);
         }
-
-        // make very last token equal NULL
         tokens[i] = NULL;
 }
 
-void printToken(char *token){ 
-        printf("%s\n", token);
-}
 
-// stage two
-void execute(char *tokens[]){
-        // fork the program
+// --- Stage 2: Execute external commands ---
+
+/* forks a child process and runs the given command via execvp */
+void execute(char *tokens[]) {
         pid_t p = fork();
-
-        // fork function did not work, e.g not enough space on computer
         if (p < 0) {
                 perror("fork failed");
-        }
-        // child program
-        else if (p == 0) {
-                execvp(tokens[0], tokens); // terminates itself if sucessfully run and generates new program
-                // execvp searches PATH automatically and accepts token array(echo, echo hello world)
-                perror(tokens[0]); // error message with name of attemted command
-                _exit(1); // exit with error code 1, terminates anyway
-        }
-        // parent program waits for child program to end
-        else {
+        } else if (p == 0) {
+                // child: replace process image with the command
+                execvp(tokens[0], tokens);
+                perror(tokens[0]); // only reached if execvp fails
+                _exit(1);
+        } else {
+                // parent: wait for child to finish
                 wait(NULL);
         }
 }
 
-// stage three
-void getPath(void){
+
+// --- Stage 3: Path and home directory ---
+
+/* prints the current PATH environment variable */
+void getPath(void) {
         char *path = getenv("PATH");
         printf("%s\n", path);
 }
 
-void setPath(char* path){
+/* sets the PATH environment variable to the given path string */
+void setPath(char *path) {
         if (path == NULL) {
                 printf("ERROR - setpath requires a parameter\n");
-        }
-        else{
+        } else {
                 setenv("PATH", path, 1);
-        }      
+        }
 }
 
-void changeDir(char* path, char* path2){
-        if(path != NULL && path2 != NULL) { //Check for too many arguments
-                printf("ERROR - cd only takes one argument\n"); // error message for invalid usage
-        }
-        else if(path == NULL) { // if user typed only "cd" then go to HOME
-                char* home = getenv("HOME"); // get HOME directory from environment
-                // try to change directory to HOME, -1 means it failed
+
+// --- Stage 4: Change directory ---
+
+/* changes the working directory; no arg goes HOME, one arg goes to that path */
+void changeDir(char *path, char *path2) {
+        if (path != NULL && path2 != NULL) {
+                printf("ERROR - cd only takes one argument\n");
+        } else if (path == NULL) {
+                char *home = getenv("HOME");
                 if (chdir(home) == -1) {
-                        perror("cd"); // print system error message for why cd failed
+                        perror("cd");
+                }
+        } else {
+                if (chdir(path) == -1) {
+                        perror("cd");
                 }
         }
-        else { //if user typed "cd <path>" then go to that path - try to change directory to the user provided directory
-                if(chdir(path) == -1) {
-                        perror("cd");  //print system error message (e.g. no such directory)
-                }
-        } 
 }
 
-// convert a sting into an integer
-int stringToInt(char* str){
+
+// --- Stage 5: History ---
+
+/* converts a numeric string to an integer (digits only, no stdlib atoi) */
+int stringToInt(char *str) {
         int result = 0;
         int i = 0;
-        int digit;
-
-        while (str[i] >= '0' && str[i] <= '9'){
-                digit = str[i] - '0';
-                result = result * 10 + digit;
+        while (str[i] >= '0' && str[i] <= '9') {
+                result = result * 10 + (str[i] - '0');
                 i++;
         }
-
         return result;
 }
 
-// add a command to the history
-void addHistory(char* command){
-        // find where to store command in circular array
+/* adds a command line string to the circular history array */
+void addHistory(char *command) {
         int index = history_count % HISTORY_SIZE;
-        // copy command into the history location
         strcpy(history[index], command);
         history_count++;
 }
 
-void printHistory(FILE* output){
-        // find out how much of the history is being used
-        int total = history_count;
-        if (total > HISTORY_SIZE){
-                total = HISTORY_SIZE;
-        }
-
+/* prints the history to the given file (stdout or a file handle) */
+void printHistory(FILE *output) {
+        int total = (history_count > HISTORY_SIZE) ? HISTORY_SIZE : history_count;
         int start_num = history_count - total + 1;
-        int index;
 
-        for (int i = 0; i < total; i++){
-                index = (start_num + i - 1) % HISTORY_SIZE;
+        for (int i = 0; i < total; i++) {
+                int index = (start_num + i - 1) % HISTORY_SIZE;
                 fprintf(output, "%d %s", start_num + i, history[index]);
         }
-
 }
 
-int isHistoryCommand(char* input){
-        if (input[0] == '!'){
-                return 1;
-        }
-        return 0;
+/* returns 1 if input starts with '!' (i.e. is a history invocation) */
+int isHistoryCommand(char *input) {
+        return (input[0] == '!') ? 1 : 0;
 }
 
-char* getHistoryCommand(char* input){
+/*
+ * resolves a history invocation string to the actual command string.
+ * supports !!, !n, !-n forms.
+ * returns NULL and prints an error on invalid invocations.
+ */
+char *getHistoryCommand(char *input) {
         int target_num;
 
-        // handle !!
-        if (strcmp(input, "!!\n") == 0) {
+        if (strcmp(input, "!!\n") == 0 || strcmp(input, "!!") == 0) {
                 if (history_count == 0) {
-                        printf("Error, no commands in history \n");
+                        printf("Error - no commands in history\n");
                         return NULL;
                 }
                 target_num = history_count;
         } else if (input[1] == '-') {
-                // skip the - and get the offset num
-                int offest = stringToInt(input + 2);
-                target_num = history_count - offest;
-
+                int offset = stringToInt(input + 2);
+                target_num = history_count - offset;
         } else {
                 target_num = stringToInt(input + 1);
-
         }
 
-        if (target_num < 1 || target_num > history_count){
-                printf("Error, invalid history number \n");
+        if (target_num < 1 || target_num > history_count) {
+                printf("Error - invalid history number\n");
                 return NULL;
         }
 
         int oldest = history_count - HISTORY_SIZE + 1;
-        if (oldest < 1) {
-                oldest = 1;
-        }
+        if (oldest < 1) oldest = 1;
 
-        if (target_num < 1){
-                printf("Error, invalid history number \n");
+        if (target_num < oldest) {
+                printf("Error - command no longer in history\n");
                 return NULL;
         }
-        
+
         int index = (target_num - 1) % HISTORY_SIZE;
         return history[index];
 }
 
+
+// --- Stage 6: Persistent history ---
+
+/* loads history from ~/.hist_list on shell startup */
 void loadHistory(void) {
         FILE *file = fopen(getHistoryFilepath(), "r");
-        if (file == NULL) {
-                return; // file doesn't exist yet
-        }
+        if (file == NULL) return;
 
         char line[MAX_LINE_LEN];
-        char* command;
         while (fgets(line, sizeof(line), file) != NULL) {
-                command = strchr(line, ' '); // skip the number
-
+                char *command = strchr(line, ' '); // format is "N command"
                 if (command != NULL) {
-                        command++; // move past space
+                        command++; // skip the space after the number
                         addHistory(command);
                 }
         }
-
         fclose(file);
 }
 
+/* saves current history to ~/.hist_list before shell exits */
 void saveHistory(void) {
         FILE *file = fopen(getHistoryFilepath(), "w");
-        if (file == NULL) {
-                return;
-        }
-
+        if (file == NULL) return;
         printHistory(file);
         fclose(file);
 }
 
-char* getHistoryFilepath(void) {
-    static char filepath[MAX_LINE_LEN]; // static so pointer stays valid
-    char *home = getenv("HOME");
-    snprintf(filepath, sizeof(filepath), "%s/.hist_list", home);
-    return filepath;
-}
-// the full path to the alias file in the user's home directory using snprintf
-char* getAliasFilepath(void) { 
-    static char filepath[MAX_LINE_LEN];
-    char* home = getenv("HOME"); // get user's home directory
-    snprintf(filepath, sizeof(filepath), "%s/.aliases", home); // used to create strings. snprintf used to write into string and prevent overflow
-    return filepath;
+/* returns the full path to the history file in the user's home directory */
+char *getHistoryFilepath(void) {
+        static char filepath[MAX_LINE_LEN];
+        char *home = getenv("HOME");
+        snprintf(filepath, sizeof(filepath), "%s/.hist_list", home);
+        return filepath;
 }
 
-void addAlias(char* name, char* command) {
-        int i;
 
+// --- Stage 7: Aliases ---
 
-        for (i = 0; i< alias_count; i++) {
+/* adds or updates an alias; prints a message if overriding an existing one */
+void addAlias(char *name, char *command) {
+        // check if alias already exists and update it
+        for (int i = 0; i < alias_count; i++) {
                 if (strcmp(alias_names[i], name) == 0) {
                         strcpy(alias_commands[i], command);
-                        printf("Alias %s updated\n", name);
+                        printf("Alias '%s' updated\n", name);
                         return;
                 }
         }
-        
         if (alias_count >= MAX_ALIASES) {
                 printf("ERROR - maximum number of aliases reached\n");
                 return;
@@ -430,12 +372,10 @@ void addAlias(char* name, char* command) {
         alias_count++;
 }
 
-void removeAlias(char* name) {
-        int found;
-        int i;
-        found = -1;
-
-        for (i = 0; i < alias_count; i++) {
+/* removes an alias by name, shifting remaining entries to fill the gap */
+void removeAlias(char *name) {
+        int found = -1;
+        for (int i = 0; i < alias_count; i++) {
                 if (strcmp(alias_names[i], name) == 0) {
                         found = i;
                         break;
@@ -445,93 +385,176 @@ void removeAlias(char* name) {
                 printf("ERROR - no such alias\n");
                 return;
         }
-        for (i = found; i < alias_count - 1; i++) {
+        // shift remaining aliases down to fill the gap
+        for (int i = found; i < alias_count - 1; i++) {
                 strcpy(alias_names[i], alias_names[i + 1]);
                 strcpy(alias_commands[i], alias_commands[i + 1]);
         }
         alias_count--;
 }
 
-void printALias(void) {
-        int i;
-
+/* prints all currently set aliases in alias name='command' format */
+void printAliases(void) {
         if (alias_count == 0) {
                 printf("No aliases set\n");
                 return;
         }
-        for (i = 0; i < alias_count; i++) {
+        for (int i = 0; i < alias_count; i++) {
                 printf("alias %s='%s'\n", alias_names[i], alias_commands[i]);
         }
-
-
 }
 
-char* checkAlias(char* firstToken, char* remInput) {
-         static char expanded[MAX_LINE_LEN];
-        int i;
 
-        for (i = 0; i < alias_count; i++) {
-                if (strcmp(firstToken, alias_names[i]) == 0) {
-                        strcpy(expanded, alias_commands[i]);
+// --- Stage 8: Persistent aliases ---
 
-                      if (remInput != NULL) {
-                                strcat(expanded, " ");
-                                strcat(expanded, remInput);
-                        } else {
-                                strcat(expanded, "\n");
-                        }
-                        
-                        return expanded;
-                }
-        }
-        
-        return NULL;
+/* returns the full path to the aliases file in the user's home directory */
+char *getAliasFilepath(void) {
+        static char filepath[MAX_LINE_LEN];
+        char *home = getenv("HOME");
+        snprintf(filepath, sizeof(filepath), "%s/.aliases", home);
+        return filepath;
 }
 
-// stage 8 - save aliases to file
+/* saves current aliases to ~/.aliases before shell exits */
 void saveAliases(void) {
         FILE *file = fopen(getAliasFilepath(), "w");
-        if (file == NULL) {
-                return; // couldn't open file
-        }
-
-        int i;
-        for (i = 0; i < alias_count; i++) {
+        if (file == NULL) return;
+        for (int i = 0; i < alias_count; i++) {
                 fprintf(file, "%s %s\n", alias_names[i], alias_commands[i]);
         }
-
         fclose(file);
 }
 
-// stage 8 - load aliases from file
+/* loads aliases from ~/.aliases on shell startup */
 void loadAliases(void) {
         FILE *file = fopen(getAliasFilepath(), "r");
-        if (file == NULL) {
-                return; // file doesn't exist yet
-        }
+        if (file == NULL) return;
 
         char line[MAX_LINE_LEN];
-        char name[MAX_LINE_LEN];
-        char command[MAX_LINE_LEN];
-
         while (fgets(line, sizeof(line), file) != NULL) {
-                char *space = strchr(line, ' '); // find split point
-                if (space == NULL) {
-                        continue; // skip malformed lines
-                }
+                char *space = strchr(line, ' ');
+                if (space == NULL) continue;
 
-                *space = '\0';
+                *space = '\0'; // split line into name and command
+                char name[MAX_LINE_LEN];
+                char command[MAX_LINE_LEN];
                 strcpy(name, line);
-
                 strcpy(command, space + 1);
-                command[strcspn(command, "\n")] = '\0'; // remove newline
-
+                command[strcspn(command, "\n")] = '\0'; // strip trailing newline
                 addAlias(name, command);
         }
-
         fclose(file);
 }
-        
+
+
+// --- Stage 9: Enhanced alias resolution ---
+
+/*
+ * resolveCommand: repeatedly expands aliases and history invocations in input
+ * until the command is a plain built-in or external command, or MAX_SUBSTITUTIONS
+ * is reached (which indicates a cycle and triggers an error).
+ *
+ * input is modified in place. Returns 1 on success, 0 on error.
+ *
+ * Supports:
+ *   - Chained aliases:      alias la='l -a', alias l='ls'  =>  la . => ls -a .
+ *   - Aliased history:      alias five='!5'                =>  five => executes history[5]
+ *   - History invocations:  !!, !n, !-n
+ *   - Parameters are preserved and appended correctly at each step
+ */
+int resolveCommand(char *input) {
+        char work[MAX_LINE_LEN];
+        int substitutions = 0;
+
+        strcpy(work, input);
+
+        while (substitutions < MAX_SUBSTITUTIONS) {
+                // strip leading whitespace for clean token extraction
+                char temp[MAX_LINE_LEN];
+                strcpy(temp, work);
+
+                // extract first token (the command word) without destroying work
+                char first[MAX_LINE_LEN];
+                char rest[MAX_LINE_LEN] = "";
+
+                // find end of first token
+                int i = 0;
+                while (temp[i] != '\0' && temp[i] != ' ' && temp[i] != '\t' && temp[i] != '\n') {
+                        first[i] = temp[i];
+                        i++;
+                }
+                first[i] = '\0';
+
+                // rest is everything after the first token (trimming leading space)
+                if (temp[i] != '\0') {
+                        // skip whitespace between first token and rest
+                        int j = i;
+                        while (temp[j] == ' ' || temp[j] == '\t') j++;
+                        strcpy(rest, temp + j);
+                        // strip trailing newline from rest if present
+                        rest[strcspn(rest, "\n")] = '\0';
+                }
+
+                // --- Try alias expansion first ---
+                int found_alias = 0;
+                for (int k = 0; k < alias_count; k++) {
+                        if (strcmp(first, alias_names[k]) == 0) {
+                                // build: aliased_command [rest_of_original_input]
+                                char expanded[MAX_LINE_LEN] = "";
+                                strcpy(expanded, alias_commands[k]);
+                                if (rest[0] != '\0') {
+                                        strcat(expanded, " ");
+                                        strcat(expanded, rest);
+                                }
+                                strcat(expanded, "\n");
+                                strcpy(work, expanded);
+                                found_alias = 1;
+                                substitutions++;
+                                break;
+                        }
+                }
+                if (found_alias) continue;
+
+                // --- Try history invocation ---
+                if (first[0] == '!') {
+                        // build a null-terminated history lookup token (no trailing newline)
+                        char hist_token[MAX_LINE_LEN];
+                        strcpy(hist_token, first);
+                        strcat(hist_token, "\n"); // getHistoryCommand expects newline-terminated for !!
+
+                        char *hist_cmd = getHistoryCommand(hist_token);
+                        if (hist_cmd == NULL) {
+                                return 0; // error already printed
+                        }
+                        // build: history_command [rest]
+                        char expanded[MAX_LINE_LEN] = "";
+                        // hist_cmd includes a trailing newline; strip it
+                        strcpy(expanded, hist_cmd);
+                        expanded[strcspn(expanded, "\n")] = '\0';
+                        if (rest[0] != '\0') {
+                                strcat(expanded, " ");
+                                strcat(expanded, rest);
+                        }
+                        strcat(expanded, "\n");
+                        strcpy(work, expanded);
+                        substitutions++;
+                        continue;
+                }
+
+                // no alias or history substitution happened — command is resolved
+                break;
+        }
+
+        // if we hit the substitution limit, there is likely a cycle
+        if (substitutions >= MAX_SUBSTITUTIONS) {
+                printf("Error - alias/history cycle detected or chain too long\n");
+                return 0;
+        }
+
+        strcpy(input, work);
+        return 1;
+}
+
 
 /*
 
